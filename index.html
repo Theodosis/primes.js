@@ -1,0 +1,93 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>Worker example: One-core computation</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+    </head>
+    <body>
+        <div style="width: 900px;margin: auto;">
+            <h1>Prime number calculator</h1>
+            <p>
+                This is a demonstration of the Worker, a component recently added to most browsers. 
+                During the following seconds, we will calculate the number of prime numbers from 1 to 3.000.000 
+                first with pure js and then with workers. <strong>You may notice that your browser becomes unstable 
+                for a while.</strong> That's normal, as this is the behaviour of pure js, when it has much work to do.
+                The result can be compared with <a href="http://www.wolframalpha.com/input/?i=count+primes+less+than+3000000">
+                woolframalpha's answer</a>. You can also try the same algorythm in C++, <a href="primes.cpp">here</a>.
+            </p>
+            <button onclick="go()">Start!</button>
+            <p style="visibility: hidden;">Please wait while we calculate primes using pure JS... <output id="js"></output></p>
+            <p style="visibility: hidden;">Please wait while we calculate primes using Workers...<output id="worker"></output></p>
+            
+            <div style="position: relative;left: 0;width: 300px;height: 80px;border: 1px solid green;background: #afc;padding: 10px;margin-top: 30px;" id="animation">
+                This is just an animated box, representing other functionality of the webpage.
+            </div>
+        </div>
+        <script>
+            window.limit = 3 * 1000 * 1000;
+            window.countworkers = 10;
+            function calc( size ){
+                var limit, i, prime, n, count = 0;
+                for( n = 2; n < size; ++n ){
+                    prime = true;
+                    limit = Math.sqrt( n );
+                    for( i = 2; i <= limit; ++i ){
+                        if( n % i == 0 ){
+                            prime = false;
+                            break;
+                        }
+                    }
+                    if( prime ){
+                        ++count;
+                    }
+                }
+                return count;
+            }
+            
+            
+            go = function(){
+                document.getElementsByTagName( 'p' )[ 1 ].style.visibility = 'visible';
+                document.getElementsByTagName( 'button' )[ 0 ].style.visibility = 'hidden';
+                setTimeout( function(){
+                    var start = new Date();
+                    var count = calc( window.limit ); 
+                    var stop = new Date();
+
+                    document.getElementById( 'js' ).textContent = count + ' primes in ' + ( stop.getTime() - start.getTime() ) + "ms";
+                    document.getElementsByTagName( 'p' )[ 2 ].style.visibility = 'visible';
+
+                    window.start = new Date();
+                    var workers = [];
+                    var count = 0;
+                    var primes = 0;
+                    var step = window.limit / window.countworkers;
+                    for( i = 0; i < window.countworkers; ++i ){
+                        workers[ i ] = new Worker( 'worker.js' );
+                        workers[ i ].postMessage( step * i + ' ' + step );
+                        workers[ i ].onmessage = function( event ){
+                            primes += parseInt( event.data );
+                            ++count;
+                            if( count == window.countworkers ){
+                                stop = new Date();
+                                document.getElementById('worker').textContent = primes + ' primes in ' + ( stop.getTime() - window.start.getTime() ) + 'ms';
+                            }
+                        }
+                    }
+                }, 50 );
+            };
+
+
+            window.div = document.getElementById( 'animation' );
+            window.direction = 1;
+            setInterval( function(){
+                if( window.direction == 1 && parseInt( window.div.style.left ) > 500 ){
+                    window.direction = -1;
+                }
+                if( window.direction == -1 && parseInt( window.div.style.left ) <= 0 ){
+                    window.direction = 1;
+                }
+                window.div.style.left = parseInt( window.div.style.left ) + window.direction + 'px';
+            }, 30 );
+        </script>
+    </body>
+</html>
